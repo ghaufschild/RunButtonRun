@@ -66,11 +66,13 @@ class GameController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        load()
+        
         font20 = screenWidth * 0.053
         font25 = screenWidth * 0.067
         
         //Time Label
-        timeLabel = UILabel(frame: CGRectMake(screenWidth * 0.03, screenHeight * 0.035, screenWidth * 0.35, screenHeight * 0.065))
+        timeLabel = UILabel(frame: CGRectMake(screenWidth * 0.03, screenHeight * 0.045, screenWidth * 0.35, screenHeight * 0.065))
         timeLabel.text = "Time: \(currentTime)"
         timeLabel.font = (UIFont(name: "default", size: font25))
         timeLabel.textAlignment = .Center
@@ -81,7 +83,7 @@ class GameController: UIViewController {
         view.addSubview(timeLabel)
         
         //Time Label
-        bestTimeLabel = UILabel(frame: CGRectMake(screenWidth * 0.6, screenHeight * 0.035, screenWidth * 0.37, screenHeight * 0.065))
+        bestTimeLabel = UILabel(frame: CGRectMake(screenWidth * 0.5, screenHeight * 0.045, screenWidth * 0.47, screenHeight * 0.065))
         bestTimeLabel.text = "Best Time: \(highScores[0])"
         bestTimeLabel.font = (UIFont(name: "default", size: font25))
         bestTimeLabel.textAlignment = .Center
@@ -324,6 +326,10 @@ class GameController: UIViewController {
     
     func timeUpdate()               //Runs every 100th of a second
     {
+        if(time % 1 == 0.0)
+        {
+            processDijkstra(Vertex(key: Coordinate(x: Int(enemy.center.x % (gameHolder.frame.width / segments)), y: Int(enemy.center.y % (gameHolder.frame.width / segments)))), destination: Vertex(key: Coordinate(x: Int(player.center.x % (gameHolder.frame.width / segments)), y: Int(player.center.y % (gameHolder.frame.width / segments)))))
+        }
         time = time + 0.1
         time = round(time * 10)/10
         timeLabel.text = "Time: \(time)"
@@ -343,6 +349,7 @@ class GameController: UIViewController {
                 checkHighScore()
                 checkHigh = false
             }
+            bestTimeLabel.text = "Best Time: \(highScores[0])"
             save()
             view.addSubview(highScoreHolder)
         }
@@ -379,20 +386,60 @@ class GameController: UIViewController {
         highScoreHolder.removeFromSuperview()
     }
     
+    //////////////////// Location Algorithm ///////////////////
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    func processDijkstra(source: Vertex, destination: Vertex) -> Path?              //Returns a Path with the vertices
+    {
+        var frontier: Array<Path> = Array()             //All available points
+        var finalPaths: Array<Path> = Array()
+        for e in source.neighbors                   //use source edges to create the frontier
+        {
+            let newPath: Path = Path()              //Possible path
+            newPath.destination = e.neighbor        //set the newpath child to the neighbor
+            newPath.previous = nil                  //set the newpath parent to nil
+            newPath.total = e.weight                //add the new path to the frontier
+            frontier.append(newPath)
+            print("Neighbor")
+        }
+        var bestPath: Path                 //construct the best path
+        while(frontier.count != 0)
+        {
+            bestPath = Path()                       //support path changes using the greedy approach
+            var x: Int = 0
+            var pathIndex: Int = 0
+            for (x = 0; x < frontier.count; x++)
+            {
+                let itemPath: Path = frontier[x]
+                if (bestPath.total == nil) || (itemPath.total < bestPath.total)
+                {
+                    bestPath = itemPath
+                    pathIndex = x
+                }
+            }
+            for e in bestPath.destination.neighbors         //enumerate the bestPath edges
+            {
+                let newPath: Path = Path()
+                newPath.destination = e.neighbor
+                newPath.previous = bestPath
+                newPath.total = bestPath.total + e.weight
+                frontier.append(newPath)                    //add the new path to the frontier
+            }
+            finalPaths.append(bestPath)                     //preserve the bestPath
+            frontier.removeAtIndex(pathIndex)               //remove the bestPath from the frontier
+        }           //end while
+        var shortestPath: Path! = Path()                    //establish the shortest path as an optional
+        for itemPath in finalPaths
+        {
+            if (itemPath.destination.key == destination.key)
+            {
+                if (shortestPath.total == nil) || (itemPath.total < shortestPath.total)
+                {
+                    shortestPath = itemPath }
+            }
+        }
+        print(shortestPath)
+        return shortestPath
+    }
     
     
     
@@ -417,7 +464,7 @@ class GameController: UIViewController {
         highScores[0] = NSUserDefaults.standardUserDefaults().doubleForKey("highScore0")
         highScores[1] = NSUserDefaults.standardUserDefaults().doubleForKey("highScore1")
         highScores[2] = NSUserDefaults.standardUserDefaults().doubleForKey("highScore2")
-        highScores[3] = NSUserDefaults.standardUserDefaults().doubleForKey("highScore0")
+        highScores[3] = NSUserDefaults.standardUserDefaults().doubleForKey("highScore3")
         highScores[4] = NSUserDefaults.standardUserDefaults().doubleForKey("highScore4")
         highScores[5] = NSUserDefaults.standardUserDefaults().doubleForKey("highScore5")
         highScores[6] = NSUserDefaults.standardUserDefaults().doubleForKey("highScore6")
@@ -429,5 +476,98 @@ class GameController: UIViewController {
     //      Clear
     //      NSUserDefaults.standardUserDefaults().removeObjectForKey("settings")
     
+}
+
+class Path: NSObject {
+    
+    var total: Int!
+    var destination: Vertex
+    var previous: Path!
+    override var description: String{
+        var string: String = ""
+        var path: Path = self
+        while(path.previous != nil)
+        {
+            string += "\(path.previous), "
+            path = path.previous
+        }
+        return string
+    }
+    
+    //object initialization
+    override init()
+    {
+        total = 0
+        destination = Vertex()
+        previous = nil
+    }
+}
+
+class Edge: NSObject {
+    
+    var neighbor: Vertex
+    var weight: Int
+    
+    override init()
+    {
+        weight = 0
+        self.neighbor = Vertex()
+    }
+}
+
+class Coordinate: NSObject
+{
+    var x: Int
+    var y: Int
+    
+    override init()
+    {
+        x = 0
+        y = 0
+    }
+    
+    init(x: Int, y: Int)
+    {
+        self.x = x
+        self.y = y
+    }
+}
+
+class Vertex: NSObject
+{
+    var key: Coordinate?
+    var neighbors: Array<Edge>
+    override var description: String {
+        return "\(key!.x), \(key!.y)"
+    }
+    
+    override init()
+    {
+        self.neighbors = Array<Edge>()
+        
+    }
+    
+    init(key: Coordinate)
+    {
+        self.key = key
+        self.neighbors = Array<Edge>()
+    }
+    
+    func addEdge(source: Vertex, neighbor: Vertex, weight: Int)
+    {
+        //create a new edge
+        let newEdge = Edge()
+        //establish the default properties
+        newEdge.neighbor = neighbor
+        newEdge.weight = weight
+        source.neighbors.append(newEdge)
+        //check for undirected graph
+        //create a new reversed edge
+        let reverseEdge = Edge()
+        //establish the reversed properties
+        reverseEdge.neighbor = source
+        reverseEdge.weight = weight
+        neighbor.neighbors.append(reverseEdge)
+    }
 }
 
