@@ -388,57 +388,27 @@ class GameController: UIViewController {
     
     //////////////////// Location Algorithm ///////////////////
     
-    func processDijkstra(source: Vertex, destination: Vertex) -> Path?              //Returns a Path with the vertices
+    func findPath(source: Coordinate, destination: Coordinate) -> Path?              //Returns a Path with the vertices
     {
-        var frontier: Array<Path> = Array()             //All available points
-        var finalPaths: Array<Path> = Array()
-        for e in source.neighbors                   //use source edges to create the frontier
+        if source.equals(destination)
         {
-            let newPath: Path = Path()              //Possible path
-            newPath.destination = e.neighbor        //set the newpath child to the neighbor
-            newPath.previous = nil                  //set the newpath parent to nil
-            newPath.total = e.weight                //add the new path to the frontier
-            frontier.append(newPath)
-            print("Neighbor")
+            gameOver()
+            return nil
         }
-        var bestPath: Path                 //construct the best path
-        while(frontier.count != 0)
+        
+        var paths: [Path] = [Path(coord: source, other: nil)]
+        for path in paths
         {
-            bestPath = Path()                       //support path changes using the greedy approach
-            var x: Int = 0
-            var pathIndex: Int = 0
-            for (x = 0; x < frontier.count; x++)
+            for coord in path.destination.getAdjacent()
             {
-                let itemPath: Path = frontier[x]
-                if (bestPath.total == nil) || (itemPath.total < bestPath.total)
-                {
-                    bestPath = itemPath
-                    pathIndex = x
-                }
-            }
-            for e in bestPath.destination.neighbors         //enumerate the bestPath edges
-            {
-                let newPath: Path = Path()
-                newPath.destination = e.neighbor
-                newPath.previous = bestPath
-                newPath.total = bestPath.total + e.weight
-                frontier.append(newPath)                    //add the new path to the frontier
-            }
-            finalPaths.append(bestPath)                     //preserve the bestPath
-            frontier.removeAtIndex(pathIndex)               //remove the bestPath from the frontier
-        }           //end while
-        var shortestPath: Path! = Path()                    //establish the shortest path as an optional
-        for itemPath in finalPaths
-        {
-            if (itemPath.destination.key == destination.key)
-            {
-                if (shortestPath.total == nil) || (itemPath.total < shortestPath.total)
-                {
-                    shortestPath = itemPath }
+                
             }
         }
-        print(shortestPath)
-        return shortestPath
+    }
+    
+    func validLocCoord(other: Coordinate) -> Bool
+    {
+        return true
     }
     
     
@@ -478,40 +448,49 @@ class GameController: UIViewController {
     
 }
 
+struct properties
+{
+    static let segments = 7
+}
+
 class Path: NSObject {
     
-    var total: Int!
-    var destination: Vertex
-    var previous: Path!
+    var length: Int!
+    var destination: Coordinate
+    var previous: Path?
+    
     override var description: String{
         var string: String = ""
         var path: Path = self
         while(path.previous != nil)
         {
             string += "\(path.previous), "
-            path = path.previous
+            path = path.previous!
         }
         return string
     }
     
     //object initialization
-    override init()
+    init(coord: Coordinate, other: Path?)
     {
-        total = 0
-        destination = Vertex()
-        previous = nil
+        length = other != nil ? other!.length + 1 : 1
+        destination = coord
+        previous = other
     }
-}
-
-class Edge: NSObject {
     
-    var neighbor: Vertex
-    var weight: Int
-    
-    override init()
+    func contains(coord: Coordinate) -> Bool
     {
-        weight = 0
-        self.neighbor = Vertex()
+        var path: Path? = self
+        while path != nil
+        {
+            if path!.destination.equals(coord)
+            {
+                return true
+            }
+            path = path!.previous
+        }
+        
+        return false
     }
 }
 
@@ -531,43 +510,31 @@ class Coordinate: NSObject
         self.x = x
         self.y = y
     }
-}
-
-class Vertex: NSObject
-{
-    var key: Coordinate?
-    var neighbors: Array<Edge>
-    override var description: String {
-        return "\(key!.x), \(key!.y)"
+    
+    func getAdjacent() -> Array<Coordinate>
+    {
+        var array: [Coordinate] = []
+        if(x > 0)
+        {
+            array.append(Coordinate(x: self.x - 1, y: self.y))
+        }
+        if(y > 0)
+        {
+            array.append(Coordinate(x: self.x, y: self.y - 1))
+        }
+        if(x < properties.segments - 1)
+        {
+            array.append(Coordinate(x: self.x + 1, y: self.y))
+        }
+        if(y < properties.segments - 1)
+        {
+            array.append(Coordinate(x: self.x, y: self.y + 1))
+        }
+        return array
     }
     
-    override init()
+    func equals(other: Coordinate) -> Bool
     {
-        self.neighbors = Array<Edge>()
-        
-    }
-    
-    init(key: Coordinate)
-    {
-        self.key = key
-        self.neighbors = Array<Edge>()
-    }
-    
-    func addEdge(source: Vertex, neighbor: Vertex, weight: Int)
-    {
-        //create a new edge
-        let newEdge = Edge()
-        //establish the default properties
-        newEdge.neighbor = neighbor
-        newEdge.weight = weight
-        source.neighbors.append(newEdge)
-        //check for undirected graph
-        //create a new reversed edge
-        let reverseEdge = Edge()
-        //establish the reversed properties
-        reverseEdge.neighbor = source
-        reverseEdge.weight = weight
-        neighbor.neighbors.append(reverseEdge)
+        return self.x == other.x && self.y == other.y
     }
 }
-
