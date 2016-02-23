@@ -28,7 +28,8 @@ class GameController: UIViewController {
     var timeLabel: UILabel!         //Tells current time
     var bestTimeLabel: UILabel!     //Tells high score
     var walls: [UILabel] = []       //Walls
-    
+    var walls2: [[Bool]] = [[]]     //Used for checking valid locations
+
     var upArrow = UIButton(type: UIButtonType.System)           //move player up
     var downArrow = UIButton(type: UIButtonType.System)         //move player down
     var leftArrow = UIButton(type: UIButtonType.System)         //move player left
@@ -176,6 +177,25 @@ class GameController: UIViewController {
         walls.append(wall11)
         walls.append(wall12)
         walls.append(wall13)
+        for _ in 0..<Int(segments)
+        {
+            walls2.append(Array(count: Int(segments), repeatedValue: false))
+        }
+        walls2[1][1] = true
+        walls2[1][2] = true
+        walls2[2][1] = true
+        walls2[1][5] = true
+        walls2[1][6] = true
+        walls2[2][6] = true
+        walls2[3][3] = true
+        walls2[5][1] = true
+        walls2[6][1] = true
+        walls2[6][2] = true
+        walls2[5][6] = true
+        walls2[6][5] = true
+        walls2[6][6] = true
+
+        
         
         //Distance to bottom of gameHolder
         let distFromGame = gameHolder.frame.maxY
@@ -328,7 +348,7 @@ class GameController: UIViewController {
     {
         if(time % 1 == 0.0)
         {
-            processDijkstra(Vertex(key: Coordinate(x: Int(enemy.center.x % (gameHolder.frame.width / segments)), y: Int(enemy.center.y % (gameHolder.frame.width / segments)))), destination: Vertex(key: Coordinate(x: Int(player.center.x % (gameHolder.frame.width / segments)), y: Int(player.center.y % (gameHolder.frame.width / segments)))))
+            findPath(<#T##source: Coordinate##Coordinate#>, destination: <#T##Coordinate#>)
         }
         time = time + 0.1
         time = round(time * 10)/10
@@ -397,18 +417,50 @@ class GameController: UIViewController {
         }
         
         var paths: [Path] = [Path(coord: source, other: nil)]
-        for path in paths
+        var oldPaths: [Path] = []
+        var finalPaths: [Path] = []
+        while !paths.isEmpty
         {
-            for coord in path.destination.getAdjacent()
+            oldPaths = paths
+            paths = []
+            for path in oldPaths
             {
-                
+                for coord in path.destination.getAdjacent()
+                {
+                    if validLocCoord(coord) && !path.contains(coord)
+                    {
+                        paths.append(Path(coord: coord, other: path))
+                    }
+                    
+                }
+            }
+            for var index = paths.count - 1; index >= 0; index--
+            {
+                let path = paths[index]
+                if path.destination.equals(destination)
+                {
+                    finalPaths.append(path)
+                    paths.removeAtIndex(index)
+                }
             }
         }
+        
+        var min: Path = finalPaths[0]
+        
+        for path in finalPaths
+        {
+            if path.length < min.length
+            {
+                min = path
+            }
+        }
+        print("working:", min)
+        return min
     }
     
     func validLocCoord(other: Coordinate) -> Bool
     {
-        return true
+        return !walls2[other.x][other.y]
     }
     
     
