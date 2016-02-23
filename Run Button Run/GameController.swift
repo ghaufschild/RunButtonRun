@@ -24,12 +24,14 @@ class GameController: UIViewController {
     var segments: CGFloat = 7           //Number of segments
     var timer = NSTimer()               //Timer
     var time: Double = 0.0              //Time Variable
+    var cpuMove: Double = 1.0           //How often the cpu moves
+    var cpuTimer = NSTimer()            //Affects enemy movements
     
     var timeLabel: UILabel!         //Tells current time
     var bestTimeLabel: UILabel!     //Tells high score
     var walls: [UILabel] = []       //Walls
     var walls2: [[Bool]] = [[]]     //Used for checking valid locations
-
+    
     var upArrow = UIButton(type: UIButtonType.System)           //move player up
     var downArrow = UIButton(type: UIButtonType.System)         //move player down
     var leftArrow = UIButton(type: UIButtonType.System)         //move player left
@@ -177,25 +179,21 @@ class GameController: UIViewController {
         walls.append(wall11)
         walls.append(wall12)
         walls.append(wall13)
-        for _ in 0..<Int(segments)
-        {
-            walls2.append(Array(count: Int(segments), repeatedValue: false))
-        }
+        
+        walls2 = Array(count: Int(segments), repeatedValue: Array(count: Int(segments), repeatedValue: false))
         walls2[1][1] = true
         walls2[1][2] = true
         walls2[2][1] = true
+        walls2[1][4] = true
         walls2[1][5] = true
-        walls2[1][6] = true
-        walls2[2][6] = true
+        walls2[2][5] = true
         walls2[3][3] = true
+        walls2[4][1] = true
         walls2[5][1] = true
-        walls2[6][1] = true
-        walls2[6][2] = true
-        walls2[5][6] = true
-        walls2[6][5] = true
-        walls2[6][6] = true
-
-        
+        walls2[5][2] = true
+        walls2[4][5] = true
+        walls2[5][4] = true
+        walls2[5][5] = true
         
         //Distance to bottom of gameHolder
         let distFromGame = gameHolder.frame.maxY
@@ -341,20 +339,37 @@ class GameController: UIViewController {
         {
             gameStarted = true
             timer = NSTimer.scheduledTimerWithTimeInterval(0.1, target: self, selector: Selector("timeUpdate"), userInfo: nil, repeats: true)
+            cpuTimer = NSTimer.scheduledTimerWithTimeInterval(cpuMove, target: self, selector: Selector("cpuMovement"), userInfo: nil, repeats: true)
         }
     }
     
     func timeUpdate()               //Runs every 100th of a second
     {
-        if(time % 1 == 0.0)
-        {
-            findPath(<#T##source: Coordinate##Coordinate#>, destination: <#T##Coordinate#>)
-        }
         time = time + 0.1
         time = round(time * 10)/10
         timeLabel.text = "Time: \(time)"
         gameOver()
         
+    }
+    
+    func cpuMovement()
+    {
+        cpuTimer.invalidate()
+        cpuMove = cpuMove * 0.98
+        cpuTimer = NSTimer.scheduledTimerWithTimeInterval(cpuMove, target: self, selector: Selector("cpuMovement"), userInfo: nil, repeats: true)
+        let path = findPath(Coordinate(x: Int(player.center.x * (segments / gameHolder.frame.width)), y: Int(player.center.y * (segments / gameHolder.frame.width))), destination: Coordinate(x: Int(enemy.center.x * (segments / gameHolder.frame.width)), y: Int(enemy.center.y * (segments / gameHolder.frame.width))))
+        if(path?.length > 1)
+        {
+            move(-CGFloat((path?.destination.x)! - (path?.previous!.destination.x)!), yDirection: -CGFloat((path?.destination.y)! - (path?.previous?.destination.y)!), name: "enemy")
+        }
+        else if(path != nil)
+        {
+            move(-CGFloat((path?.destination.x)!), yDirection: -CGFloat((path?.destination.y)!), name: "enemy")
+        }
+        else
+        {
+            gameOver()
+        }
     }
     
     func gameOver()                 //Checks if game is over and ends the game properly
@@ -364,6 +379,7 @@ class GameController: UIViewController {
             gameReady = false
             gameStarted = false
             timer.invalidate()
+            cpuTimer.invalidate()
             if(checkHigh)
             {
                 checkHighScore()
@@ -397,6 +413,7 @@ class GameController: UIViewController {
     func reset()                    //Resets Game
     {
         time = 0.0
+        cpuMove = 1.0
         timeLabel.text = "Time: \(time)"
         gameStarted = false
         gameReady = true
@@ -431,7 +448,6 @@ class GameController: UIViewController {
                     {
                         paths.append(Path(coord: coord, other: path))
                     }
-                    
                 }
             }
             for var index = paths.count - 1; index >= 0; index--
@@ -454,7 +470,6 @@ class GameController: UIViewController {
                 min = path
             }
         }
-        print("working:", min)
         return min
     }
     
@@ -516,7 +531,7 @@ class Path: NSObject {
         var path: Path = self
         while(path.previous != nil)
         {
-            string += "\(path.previous), "
+            string += "\(path.destination), "
             path = path.previous!
         }
         return string
@@ -550,6 +565,10 @@ class Coordinate: NSObject
 {
     var x: Int
     var y: Int
+    
+    override var description: String{
+        return "(\(x), \(y))"
+    }
     
     override init()
     {
